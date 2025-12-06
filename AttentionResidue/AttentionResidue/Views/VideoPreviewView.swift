@@ -60,20 +60,23 @@ class VideoPreviewNSView: NSView {
         previewLayer?.removeFromSuperlayer()
         overlayLayer?.removeFromSuperlayer()
 
-        guard let session = captureSession else { return }
+        guard let session = captureSession, let rootLayer = self.layer else { return }
 
         // Create preview layer
         let preview = AVCaptureVideoPreviewLayer(session: session)
         preview.videoGravity = .resizeAspect
         preview.frame = bounds
-        self.layer?.addSublayer(preview)
+        rootLayer.addSublayer(preview)
         previewLayer = preview
 
         // Create overlay layer on top of preview
         let overlay = CALayer()
         overlay.frame = bounds
-        self.layer?.addSublayer(overlay)
+        overlay.zPosition = 1  // Ensure overlay is above preview
+        rootLayer.addSublayer(overlay)
         overlayLayer = overlay
+
+        print("[VideoPreview] Setup complete - preview: \(preview.frame), overlay: \(overlay.frame)")
     }
 
     override func layout() {
@@ -94,10 +97,22 @@ class VideoPreviewNSView: NSView {
         }
         faceBoxLayers.removeAll()
 
-        guard showOverlay, !detectedFaces.isEmpty, let overlayLayer = overlayLayer else { return }
+        // Debug: print face count
+        if !detectedFaces.isEmpty {
+            print("[Overlay] Updating with \(detectedFaces.count) faces, showOverlay=\(showOverlay), overlayLayer=\(overlayLayer != nil)")
+        }
+
+        guard showOverlay, !detectedFaces.isEmpty else { return }
+
+        // Ensure overlay layer exists
+        guard let overlayLayer = overlayLayer else {
+            print("[Overlay] ERROR: overlayLayer is nil!")
+            return
+        }
 
         // Get the video preview rect (accounting for aspect ratio)
         let videoRect = calculateVideoRect()
+        print("[Overlay] videoRect=\(videoRect), bounds=\(bounds)")
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -112,6 +127,7 @@ class VideoPreviewNSView: NSView {
                 width: face.boundingBox.width * videoRect.width,
                 height: face.boundingBox.height * videoRect.height
             )
+            print("[Overlay] Drawing face at \(faceRect) from bbox \(face.boundingBox)")
 
             // Choose color based on gaze direction
             let color: CGColor = face.isLookingDown ? NSColor.systemRed.cgColor : NSColor.systemGreen.cgColor

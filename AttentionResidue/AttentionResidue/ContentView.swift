@@ -177,6 +177,11 @@ class DetectionBridge: VideoCaptureDelegate {
         // Run detection
         let faces = faceDetector.detectFaces(in: sampleBuffer)
 
+        // Debug: log when faces are detected
+        if !faces.isEmpty && frameCount % 30 == 0 {
+            print("[Detection] Found \(faces.count) faces: \(faces.map { "bbox=\($0.boundingBox), pitch=\($0.pitchAngle ?? 0)" })")
+        }
+
         // Update state on main thread
         Task { @MainActor in
             detectionState.updateDetection(faces: faces)
