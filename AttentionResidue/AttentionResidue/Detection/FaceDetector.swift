@@ -14,10 +14,13 @@ import CoreImage
 class FaceDetector {
     // MARK: - Properties
 
-    /// Threshold for considering someone as "looking down" (in degrees)
-    /// Vision framework: positive pitch = looking down, negative = looking up
-    /// This threshold is the minimum positive pitch to consider "looking down"
-    var lookingDownThreshold: Double = 5.0
+    /// Neutral pitch when looking straight at camera (in degrees)
+    /// Based on observed values, neutral is around 2-4 degrees
+    var neutralPitch: Double = 3.0
+
+    /// How far from neutral pitch to consider "looking down" (in degrees)
+    /// Catches both positive deviation (head tilted forward) and negative (head tilted back looking at phone)
+    var pitchDeviationThreshold: Double = 8.0
 
     /// Reusable request handler
     private var sequenceHandler = VNSequenceRequestHandler()
@@ -70,7 +73,17 @@ class FaceDetector {
 
         // Estimate pitch from various available data
         let pitchAngle = estimatePitch(from: observation)
-        let isLookingDown = pitchAngle != nil && pitchAngle! > lookingDownThreshold
+
+        // Check if pitch deviates significantly from neutral in either direction
+        // Positive deviation: head tilted forward (chin down)
+        // Negative deviation: head tilted back but looking down at phone
+        let isLookingDown: Bool
+        if let pitch = pitchAngle {
+            let deviationFromNeutral = abs(pitch - neutralPitch)
+            isLookingDown = deviationFromNeutral > pitchDeviationThreshold
+        } else {
+            isLookingDown = false
+        }
 
         return DetectedFace(
             boundingBox: boundingBox,
