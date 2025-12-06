@@ -97,6 +97,8 @@ class VideoCapture: NSObject, ObservableObject {
 
     /// Start capture with the specified device
     func startCapture(with deviceID: String? = nil) {
+        print("[VideoCapture] startCapture called with deviceID: \(deviceID ?? "nil")")
+
         let device: AVCaptureDevice?
 
         if let id = deviceID {
@@ -106,16 +108,18 @@ class VideoCapture: NSObject, ObservableObject {
         }
 
         guard let captureDevice = device else {
-            print("No video device available")
+            print("[VideoCapture] ERROR: No video device available")
             return
         }
 
+        print("[VideoCapture] Using device: \(captureDevice.localizedName)")
         configure(with: captureDevice)
         start()
     }
 
     /// Configure session with a specific device
     private func configure(with device: AVCaptureDevice) {
+        print("[VideoCapture] Configuring session with device: \(device.localizedName)")
         captureSession.beginConfiguration()
 
         // Remove existing input
@@ -135,9 +139,12 @@ class VideoCapture: NSObject, ObservableObject {
                 captureSession.addInput(input)
                 videoInput = input
                 currentDevice = device
+                print("[VideoCapture] Added input successfully")
+            } else {
+                print("[VideoCapture] ERROR: Cannot add input")
             }
         } catch {
-            print("Error creating video input: \(error)")
+            print("[VideoCapture] ERROR creating video input: \(error)")
             captureSession.commitConfiguration()
             return
         }
@@ -153,9 +160,13 @@ class VideoCapture: NSObject, ObservableObject {
         if captureSession.canAddOutput(output) {
             captureSession.addOutput(output)
             videoOutput = output
+            print("[VideoCapture] Added output successfully")
+        } else {
+            print("[VideoCapture] ERROR: Cannot add output")
         }
 
         captureSession.commitConfiguration()
+        print("[VideoCapture] Configuration committed")
     }
 
     /// Switch to a different device
@@ -230,11 +241,22 @@ class VideoCapture: NSObject, ObservableObject {
 
     /// Start the capture session
     func start() {
+        print("[VideoCapture] start() called")
         videoQueue.async { [weak self] in
-            guard let self = self else { return }
-            guard !self.captureSession.isRunning else { return }
+            guard let self = self else {
+                print("[VideoCapture] start() - self is nil")
+                return
+            }
+            guard !self.captureSession.isRunning else {
+                print("[VideoCapture] start() - session already running")
+                return
+            }
 
+            print("[VideoCapture] Starting session...")
             self.captureSession.startRunning()
+            let isNowRunning = self.captureSession.isRunning
+            print("[VideoCapture] Session started, isRunning: \(isNowRunning)")
+
             DispatchQueue.main.async {
                 self.isRunning = true
             }
@@ -258,9 +280,15 @@ class VideoCapture: NSObject, ObservableObject {
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
 
 extension VideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate {
+    private static var frameCounter = 0
+
     func captureOutput(_ output: AVCaptureOutput,
                        didOutput sampleBuffer: CMSampleBuffer,
                        from connection: AVCaptureConnection) {
+        VideoCapture.frameCounter += 1
+        if VideoCapture.frameCounter % 60 == 1 {
+            print("[VideoCapture] Received frame #\(VideoCapture.frameCounter)")
+        }
         delegate?.videoCapture(self, didCapture: sampleBuffer)
     }
 
