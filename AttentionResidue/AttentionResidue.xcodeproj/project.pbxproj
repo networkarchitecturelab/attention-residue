@@ -14,6 +14,7 @@
 		A1000005 /* FaceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000005; };
 		A1000006 /* VideoPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000006; };
 		A1000007 /* StatsOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007; };
+		A1000008 /* MIDIOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000B; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		A2000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000009 /* AttentionResidue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AttentionResidue.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A200000A /* AttentionResidue.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AttentionResidue.entitlements; sourceTree = "<group>"; };
+		A200000B /* MIDIOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIOutput.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +59,7 @@
 				A4000005 /* Views */,
 				A4000006 /* Capture */,
 				A4000007 /* Detection */,
+				A4000008 /* MIDI */,
 				A2000008 /* Info.plist */,
 				A200000A /* AttentionResidue.entitlements */,
 			);
@@ -102,6 +105,14 @@
 				A2000005 /* FaceDetector.swift */,
 			);
 			path = Detection;
+			sourceTree = "<group>";
+		};
+		A4000008 /* MIDI */ = {
+			isa = PBXGroup;
+			children = (
+				A200000B /* MIDIOutput.swift */,
+			);
+			path = MIDI;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -179,6 +190,7 @@
 				A1000005 /* FaceDetector.swift in Sources */,
 				A1000006 /* VideoPreviewView.swift in Sources */,
 				A1000007 /* StatsOverlayView.swift in Sources */,
+				A1000008 /* MIDIOutput.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

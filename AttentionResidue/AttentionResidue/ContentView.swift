@@ -16,13 +16,14 @@ struct ContentView: View {
     @State private var detectionBridge: DetectionBridge?  // Strong reference to prevent deallocation
 
     var body: some View {
+        let midiOutput = detectionState.midiOutput
         VStack(spacing: 0) {
             // Top toolbar
             ToolbarView(
                 availableDevices: detectionState.availableDevices,
                 selectedDeviceID: $detectionState.selectedDeviceID,
                 showOverlay: $detectionState.showOverlay,
-                midiOutput: detectionState.midiOutput,
+                midiOutput: midiOutput,
                 onDeviceChange: handleDeviceChange
             )
 
