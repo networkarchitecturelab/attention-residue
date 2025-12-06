@@ -15,6 +15,7 @@
 		A1000006 /* VideoPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000006; };
 		A1000007 /* StatsOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007; };
 		A1000008 /* MIDIOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000B; };
+		A1000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A200000C; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		A2000009 /* AttentionResidue.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AttentionResidue.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A200000A /* AttentionResidue.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AttentionResidue.entitlements; sourceTree = "<group>"; };
 		A200000B /* MIDIOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIOutput.swift; sourceTree = "<group>"; };
+		A200000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +62,7 @@
 				A4000006 /* Capture */,
 				A4000007 /* Detection */,
 				A4000008 /* MIDI */,
+				A200000C /* Assets.xcassets */,
 				A2000008 /* Info.plist */,
 				A200000A /* AttentionResidue.entitlements */,
 			);
@@ -173,6 +176,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1000009 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
