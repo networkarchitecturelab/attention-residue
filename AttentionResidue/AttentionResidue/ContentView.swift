@@ -22,6 +22,7 @@ struct ContentView: View {
                 availableDevices: detectionState.availableDevices,
                 selectedDeviceID: $detectionState.selectedDeviceID,
                 showOverlay: $detectionState.showOverlay,
+                midiOutput: detectionState.midiOutput,
                 onDeviceChange: handleDeviceChange
             )
 
@@ -125,6 +126,7 @@ struct ToolbarView: View {
     let availableDevices: [VideoDevice]
     @Binding var selectedDeviceID: String?
     @Binding var showOverlay: Bool
+    @ObservedObject var midiOutput: MIDIOutput
     let onDeviceChange: (String) -> Void
 
     var body: some View {
@@ -145,6 +147,26 @@ struct ToolbarView: View {
             .frame(maxWidth: 300)
 
             Spacer()
+
+            // MIDI controls
+            HStack(spacing: 12) {
+                Toggle("MIDI Out", isOn: Binding(
+                    get: { midiOutput.isEnabled },
+                    set: { _ in midiOutput.toggle() }
+                ))
+                .toggleStyle(.checkbox)
+
+                if midiOutput.isEnabled {
+                    Text("CC1: \(midiOutput.lastCCValue)")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .frame(minWidth: 60, alignment: .leading)
+                }
+            }
+
+            Divider()
+                .frame(height: 20)
+                .padding(.horizontal, 8)
 
             // Overlay toggle
             Toggle("Show Overlay", isOn: $showOverlay)

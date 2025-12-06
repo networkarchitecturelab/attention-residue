@@ -56,6 +56,11 @@ class DetectionState: ObservableObject {
     /// Error message if something goes wrong
     @Published var errorMessage: String? = nil
 
+    // MARK: - MIDI Output
+
+    /// MIDI output manager for sending attention data to external apps
+    let midiOutput = MIDIOutput()
+
     // MARK: - Smoothing Configuration
 
     /// Smoothing factor for attention ratio (0-1, higher = more smoothing)
@@ -82,6 +87,13 @@ class DetectionState: ObservableObject {
         // Apply exponential smoothing
         self.smoothedAttentionRatio = (smoothingFactor * smoothedAttentionRatio) +
                                        ((1.0 - smoothingFactor) * rawAttentionRatio)
+
+        // Send MIDI data (uses smoothed ratio for stability)
+        midiOutput.sendAttentionData(
+            attentionRatio: smoothedAttentionRatio,
+            faceCount: faceCount,
+            lookingDownCount: lookingDownCount
+        )
     }
 
     /// Reset smoothed values (e.g., when changing devices)
