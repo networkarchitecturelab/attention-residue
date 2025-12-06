@@ -13,6 +13,7 @@ struct ContentView: View {
 
     @StateObject private var videoCapture = VideoCapture()
     @State private var faceDetector = FaceDetector()
+    @State private var detectionBridge: DetectionBridge?  // Strong reference to prevent deallocation
 
     var body: some View {
         VStack(spacing: 0) {
@@ -92,11 +93,13 @@ struct ContentView: View {
             detectionState.selectedDeviceID = firstDevice.id
         }
 
-        // Set up video capture delegate
-        videoCapture.delegate = DetectionBridge(
+        // Set up video capture delegate (store strong reference to prevent deallocation)
+        let bridge = DetectionBridge(
             faceDetector: faceDetector,
             detectionState: detectionState
         )
+        detectionBridge = bridge
+        videoCapture.delegate = bridge
 
         // Start capture
         if let deviceID = detectionState.selectedDeviceID {
