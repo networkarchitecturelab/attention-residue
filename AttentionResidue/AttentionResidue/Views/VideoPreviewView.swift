@@ -24,7 +24,7 @@ struct VideoPreviewView: NSViewRepresentable {
     func updateNSView(_ nsView: VideoPreviewNSView, context: Context) {
         nsView.detectedFaces = detectedFaces
         nsView.showOverlay = showOverlay
-        nsView.setNeedsDisplay(nsView.bounds)
+        nsView.updateOverlay()
     }
 }
 
@@ -40,6 +40,8 @@ class VideoPreviewNSView: NSView {
     var showOverlay: Bool = true
 
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var overlayLayer: CALayer?
+    private var faceBoxLayers: [CALayer] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -56,35 +58,54 @@ class VideoPreviewNSView: NSView {
     private func setupPreviewLayer() {
         // Remove existing preview layer
         previewLayer?.removeFromSuperlayer()
+        overlayLayer?.removeFromSuperlayer()
 
         guard let session = captureSession else { return }
 
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspect
-        layer.frame = bounds
+        // Create preview layer
+        let preview = AVCaptureVideoPreviewLayer(session: session)
+        preview.videoGravity = .resizeAspect
+        preview.frame = bounds
+        self.layer?.addSublayer(preview)
+        previewLayer = preview
 
-        self.layer?.insertSublayer(layer, at: 0)
-        previewLayer = layer
+        // Create overlay layer on top of preview
+        let overlay = CALayer()
+        overlay.frame = bounds
+        self.layer?.addSublayer(overlay)
+        overlayLayer = overlay
     }
 
     override func layout() {
         super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         previewLayer?.frame = bounds
+        overlayLayer?.frame = bounds
+        updateOverlay()
+        CATransaction.commit()
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+    /// Update the overlay with current face detections
+    func updateOverlay() {
+        // Remove old face boxes
+        for layer in faceBoxLayers {
+            layer.removeFromSuperlayer()
+        }
+        faceBoxLayers.removeAll()
 
-        guard showOverlay, !detectedFaces.isEmpty else { return }
-        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        guard showOverlay, !detectedFaces.isEmpty, let overlayLayer = overlayLayer else { return }
 
         // Get the video preview rect (accounting for aspect ratio)
         let videoRect = calculateVideoRect()
 
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+
         for face in detectedFaces {
             // Convert normalized coordinates to view coordinates
             // Vision coordinates: origin at bottom-left, values 0-1
-            // View coordinates: origin at top-left (in AppKit, actually bottom-left too)
+            // macOS layer coordinates: origin at bottom-left (same as Vision)
             let faceRect = CGRect(
                 x: videoRect.origin.x + face.boundingBox.origin.x * videoRect.width,
                 y: videoRect.origin.y + face.boundingBox.origin.y * videoRect.height,
@@ -93,65 +114,84 @@ class VideoPreviewNSView: NSView {
             )
 
             // Choose color based on gaze direction
-            let color: NSColor = face.isLookingDown ? .systemRed : .systemGreen
+            let color: CGColor = face.isLookingDown ? NSColor.systemRed.cgColor : NSColor.systemGreen.cgColor
 
-            // Draw bounding box
-            context.setStrokeColor(color.cgColor)
-            context.setLineWidth(2.0)
-            context.stroke(faceRect)
+            // Create bounding box layer
+            let boxLayer = CAShapeLayer()
+            boxLayer.frame = faceRect
+            boxLayer.borderColor = color
+            boxLayer.borderWidth = 3.0
+            boxLayer.fillColor = nil
+            boxLayer.cornerRadius = 4
+            overlayLayer.addSublayer(boxLayer)
+            faceBoxLayers.append(boxLayer)
 
-            // Draw label
+            // Create label layer
             let label = face.isLookingDown ? "PHONE" : "ENGAGED"
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 12, weight: .bold),
-                .foregroundColor: color,
-                .backgroundColor: NSColor.black.withAlphaComponent(0.5)
-            ]
+            let textLayer = CATextLayer()
+            textLayer.string = label
+            textLayer.fontSize = 14
+            textLayer.font = NSFont.systemFont(ofSize: 14, weight: .bold)
+            textLayer.foregroundColor = color
+            textLayer.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+            textLayer.alignmentMode = .center
+            textLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
 
-            let labelString = NSAttributedString(string: label, attributes: attributes)
-            let labelSize = labelString.size()
-
-            let labelRect = CGRect(
+            let textSize = CGSize(width: 80, height: 20)
+            textLayer.frame = CGRect(
                 x: faceRect.origin.x,
-                y: faceRect.origin.y + faceRect.height + 2,
-                width: labelSize.width + 4,
-                height: labelSize.height
+                y: faceRect.origin.y + faceRect.height + 4,
+                width: textSize.width,
+                height: textSize.height
             )
+            textLayer.cornerRadius = 3
+            overlayLayer.addSublayer(textLayer)
+            faceBoxLayers.append(textLayer)
 
-            labelString.draw(in: labelRect)
-
-            // Draw pitch angle if available
+            // Create pitch angle label if available
             if let pitch = face.pitchAngle {
                 let pitchLabel = String(format: "%.0f°", pitch)
-                let pitchAttributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular),
-                    .foregroundColor: NSColor.white,
-                    .backgroundColor: NSColor.black.withAlphaComponent(0.5)
-                ]
-                let pitchString = NSAttributedString(string: pitchLabel, attributes: pitchAttributes)
-                let pitchRect = CGRect(
+                let pitchLayer = CATextLayer()
+                pitchLayer.string = pitchLabel
+                pitchLayer.fontSize = 12
+                pitchLayer.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+                pitchLayer.foregroundColor = NSColor.white.cgColor
+                pitchLayer.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+                pitchLayer.alignmentMode = .center
+                pitchLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+                pitchLayer.frame = CGRect(
                     x: faceRect.origin.x,
-                    y: faceRect.origin.y - 14,
-                    width: pitchString.size().width + 4,
-                    height: pitchString.size().height
+                    y: faceRect.origin.y - 22,
+                    width: 50,
+                    height: 18
                 )
-                pitchString.draw(in: pitchRect)
+                pitchLayer.cornerRadius = 3
+                overlayLayer.addSublayer(pitchLayer)
+                faceBoxLayers.append(pitchLayer)
             }
         }
+
+        CATransaction.commit()
     }
 
     /// Calculate the actual video display rect within the view (accounting for aspect ratio)
     private func calculateVideoRect() -> CGRect {
         guard let previewLayer = previewLayer else { return bounds }
 
-        // For resizeAspect, the video is centered and scaled to fit
-        // We need to calculate where the video actually appears
         let layerRect = previewLayer.frame
 
-        // Default to full bounds if we can't determine aspect ratio
-        // The actual video rect depends on the capture device format
-        // For simplicity, assume 16:9 aspect ratio
-        let videoAspect: CGFloat = 16.0 / 9.0
+        // Try to get actual video dimensions from the session
+        var videoAspect: CGFloat = 16.0 / 9.0  // Default fallback
+
+        if let connection = previewLayer.connection,
+           let inputPort = connection.inputPorts.first,
+           let formatDescription = inputPort.formatDescription {
+            let dimensions = CMVideoFormatDescriptionGetDimensions(formatDescription)
+            if dimensions.height > 0 {
+                videoAspect = CGFloat(dimensions.width) / CGFloat(dimensions.height)
+            }
+        }
+
         let viewAspect = layerRect.width / layerRect.height
 
         var videoRect: CGRect

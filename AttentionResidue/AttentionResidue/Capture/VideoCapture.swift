@@ -165,15 +165,64 @@ class VideoCapture: NSObject, ObservableObject {
             return
         }
 
-        let wasRunning = isRunning
-        if wasRunning {
-            stop()
-        }
+        // Perform all session operations on the video queue to avoid threading issues
+        videoQueue.async { [weak self] in
+            guard let self = self else { return }
 
-        configure(with: device)
+            let wasRunning = self.captureSession.isRunning
+            if wasRunning {
+                self.captureSession.stopRunning()
+            }
 
-        if wasRunning {
-            start()
+            // Configure on video queue
+            self.captureSession.beginConfiguration()
+
+            // Remove existing input
+            if let existingInput = self.videoInput {
+                self.captureSession.removeInput(existingInput)
+            }
+
+            // Remove existing output
+            if let existingOutput = self.videoOutput {
+                self.captureSession.removeOutput(existingOutput)
+            }
+
+            // Add new input
+            do {
+                let input = try AVCaptureDeviceInput(device: device)
+                if self.captureSession.canAddInput(input) {
+                    self.captureSession.addInput(input)
+                    self.videoInput = input
+                    self.currentDevice = device
+                }
+            } catch {
+                print("Error creating video input: \(error)")
+                self.captureSession.commitConfiguration()
+                return
+            }
+
+            // Add video output for frame processing
+            let output = AVCaptureVideoDataOutput()
+            output.alwaysDiscardsLateVideoFrames = true
+            output.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            output.setSampleBufferDelegate(self, queue: self.videoQueue)
+
+            if self.captureSession.canAddOutput(output) {
+                self.captureSession.addOutput(output)
+                self.videoOutput = output
+            }
+
+            self.captureSession.commitConfiguration()
+
+            if wasRunning {
+                self.captureSession.startRunning()
+            }
+
+            DispatchQueue.main.async {
+                self.isRunning = self.captureSession.isRunning
+            }
         }
     }
 
@@ -181,24 +230,26 @@ class VideoCapture: NSObject, ObservableObject {
 
     /// Start the capture session
     func start() {
-        guard !captureSession.isRunning else { return }
-
         videoQueue.async { [weak self] in
-            self?.captureSession.startRunning()
+            guard let self = self else { return }
+            guard !self.captureSession.isRunning else { return }
+
+            self.captureSession.startRunning()
             DispatchQueue.main.async {
-                self?.isRunning = true
+                self.isRunning = true
             }
         }
     }
 
     /// Stop the capture session
     func stop() {
-        guard captureSession.isRunning else { return }
-
         videoQueue.async { [weak self] in
-            self?.captureSession.stopRunning()
+            guard let self = self else { return }
+            guard self.captureSession.isRunning else { return }
+
+            self.captureSession.stopRunning()
             DispatchQueue.main.async {
-                self?.isRunning = false
+                self.isRunning = false
             }
         }
     }
