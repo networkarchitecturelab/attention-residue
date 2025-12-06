@@ -15,8 +15,9 @@ class FaceDetector {
     // MARK: - Properties
 
     /// Threshold for considering someone as "looking down" (in degrees)
-    /// Negative values = looking down, positive = looking up
-    var lookingDownThreshold: Double = -15.0
+    /// Vision framework: positive pitch = looking down, negative = looking up
+    /// This threshold is the minimum positive pitch to consider "looking down"
+    var lookingDownThreshold: Double = 5.0
 
     /// Reusable request handler
     private var sequenceHandler = VNSequenceRequestHandler()
@@ -69,7 +70,7 @@ class FaceDetector {
 
         // Estimate pitch from various available data
         let pitchAngle = estimatePitch(from: observation)
-        let isLookingDown = pitchAngle != nil && pitchAngle! < lookingDownThreshold
+        let isLookingDown = pitchAngle != nil && pitchAngle! > lookingDownThreshold
 
         return DetectedFace(
             boundingBox: boundingBox,
