@@ -32,7 +32,9 @@ struct VideoPreviewView: NSViewRepresentable {
 class VideoPreviewNSView: NSView {
     var captureSession: AVCaptureSession? {
         didSet {
-            setupPreviewLayer()
+            // Don't setup immediately - wait for layout when we have valid bounds
+            needsSetup = true
+            needsLayout = true
         }
     }
 
@@ -42,6 +44,7 @@ class VideoPreviewNSView: NSView {
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var overlayLayer: CALayer?
     private var faceBoxLayers: [CALayer] = []
+    private var needsSetup = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -60,12 +63,24 @@ class VideoPreviewNSView: NSView {
         previewLayer?.removeFromSuperlayer()
         overlayLayer?.removeFromSuperlayer()
 
-        guard let session = captureSession, let rootLayer = self.layer else { return }
+        guard let session = captureSession, let rootLayer = self.layer else {
+            print("[VideoPreview] Setup skipped - no session or layer")
+            return
+        }
+
+        // Don't setup with zero bounds
+        guard bounds.width > 0 && bounds.height > 0 else {
+            print("[VideoPreview] Setup deferred - bounds is zero: \(bounds)")
+            return
+        }
+
+        needsSetup = false
 
         // Create preview layer
         let preview = AVCaptureVideoPreviewLayer(session: session)
         preview.videoGravity = .resizeAspect
         preview.frame = bounds
+        preview.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         rootLayer.addSublayer(preview)
         previewLayer = preview
 
@@ -76,17 +91,31 @@ class VideoPreviewNSView: NSView {
         rootLayer.addSublayer(overlay)
         overlayLayer = overlay
 
-        print("[VideoPreview] Setup complete - preview: \(preview.frame), overlay: \(overlay.frame)")
+        print("[VideoPreview] Setup complete - preview: \(preview.frame), overlay: \(overlay.frame), session running: \(session.isRunning)")
     }
 
     override func layout() {
         super.layout()
+
+        // Setup layers if needed (deferred from captureSession didSet)
+        if needsSetup && bounds.width > 0 && bounds.height > 0 {
+            setupPreviewLayer()
+        }
+
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         previewLayer?.frame = bounds
         overlayLayer?.frame = bounds
         updateOverlay()
         CATransaction.commit()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // Try setup again when added to window
+        if needsSetup && window != nil {
+            needsLayout = true
+        }
     }
 
     /// Update the overlay with current face detections
